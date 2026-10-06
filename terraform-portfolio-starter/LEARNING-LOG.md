@@ -37,4 +37,4 @@ Experiments:
 
 6. Delete `terraform.tfstate` (copy it first), then run `plan`. What does Terraform now believe? What would `apply` do with the container that already exists? This is why state matters.
 
-Terraform tries to create the resources because it now believes they don't exist. If the container is running, it will say the container is already in use, and fail.
+- Terraform tries to create the resources because it now believes they don't exist. If the container is running, it will say the container is already in use, and fail.
