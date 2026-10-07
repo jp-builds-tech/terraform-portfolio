@@ -38,3 +38,14 @@ Experiments:
 6. Delete `terraform.tfstate` (copy it first), then run `plan`. What does Terraform now believe? What would `apply` do with the container that already exists? This is why state matters.
 
 - Terraform tries to create the resources because it now believes they don't exist. If the container is running, it will say the container is already in use, and fail.
+
+## Day 2
+
+- Created `count` and `foreach` loops
+- As a test, removed the middle container in both loops. 
+    - For the `count`, web-b took on port 8082 and web-c was gone from the config.
+    - For the `for_each`, web-b was missing, and port 8082 was not used. web-c continued to use port 8083 as expected.
+    - A recap: With count, an item's identity is its position in the list, so removing one shifts everything after it. For the for_each, an item's identity is its name, so removing one affects only that item.
+    - `for_each` is typically used when resources have a meaningful identity, whereas `count` is useful when the resources are interchangeable. For example, if you have EC2 instances with different roles (API, database, container), using for_each lets Terraform track each instance by its role. Modifying the map won't cause Terraform to confuse one server with another.
+- Tested interactive expressions through `terraform console`.
+- Compared the different kinds of data types (simple, collections, and structured)
