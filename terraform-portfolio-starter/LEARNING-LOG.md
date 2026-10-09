@@ -28,7 +28,7 @@ Experiments:
 
 - Running terraform state show appears to be the human-friendly version of terraform.tfstate (JSON).
 - Research indidcates that manually editing terraform.tfstate is a terrible idea.
-
+gi
 5. Try `-var external_port=80`. Read the validation error.
 
 - The validation error is as follows:
@@ -49,3 +49,15 @@ Experiments:
     - `for_each` is typically used when resources have a meaningful identity, whereas `count` is useful when the resources are interchangeable. For example, if you have EC2 instances with different roles (API, database, container), using for_each lets Terraform track each instance by its role. Modifying the map won't cause Terraform to confuse one server with another.
 - Tested interactive expressions through `terraform console`.
 - Compared the different kinds of data types (simple, collections, and structured)
+
+## Day 3
+
+- Learned that drift occurs when the actual infrastructure differs from what Terraform expects based on its configuration and state.
+    - When I manually deleted web-a using docker rm -f web-a, Terraform detected that the container was missing and planned to recreate it.
+    - When I renamed web-b outside Terraform, Terraform detected the difference between the actual container name and the configured name.
+    - The Docker provider requires replacement when the configured container name changes, so Terraform planned to replace the renamed container.
+- Understood how you can force resource replacement using `terraform apply -replace`. Useful if a resource isn't working as expected but Terraform believe it's running.
+- `terraform plan -refresh-only` previews changes to state so it reflects the infrastructure as it currently exists.
+- `terraform apply -refresh-only` saves those refreshes observations to state without applying normal infrastructure changes.
+- State exists so Terraform can determine which resources it already manages, detect changes, calculate plans, and know what to update, replace, or destroy.
+- State is sensitive because it can contain passwords, tokens, connection details, and other confidential values, depending on the resources and providers I use. Marking a value as sensitive in Terraform controls how it is displayed, but does not automatically prevent it from being stored in state.
