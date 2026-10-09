@@ -61,3 +61,17 @@ gi
 - `terraform apply -refresh-only` saves those refreshes observations to state without applying normal infrastructure changes.
 - State exists so Terraform can determine which resources it already manages, detect changes, calculate plans, and know what to update, replace, or destroy.
 - State is sensitive because it can contain passwords, tokens, connection details, and other confidential values, depending on the resources and providers I use. Marking a value as sensitive in Terraform controls how it is displayed, but does not automatically prevent it from being stored in state.
+
+## Day 4
+
+- Set up modules to simulate shared configurations across different environments (dev and prod)
+- Changed a resource address without recreating any of the infrastructure using `moved`.
+- If I wanted to move 200 hand-built resources under Terraform, I would need to:
+    1. Inventory exisiting infrastructure.
+    2. Prioritize low-risk, independent resources for the migration.
+    3. Write the Terraform configuration to reflect exisiting infrastructure.
+    4. Import these resources in small batches. Verify before each import.
+    5. Review `terraform plan` and adjust the configuration until Terraform proposes nop unintended changes, especially no unexpected replacement or destruction.
+    6. Back up state securely and restrict access. Keep it out of version control.
+    7. Stop manual changes after import is complete.
+    8. Introduce CI/CD and monitoring to prevent drift.
