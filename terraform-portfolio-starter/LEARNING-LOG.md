@@ -75,3 +75,60 @@ gi
     6. Back up state securely and restrict access. Keep it out of version control.
     7. Stop manual changes after import is complete.
     8. Introduce CI/CD and monitoring to prevent drift.
+
+## Day 5
+
+Kubernetes basics (kind cluster)
+
+### What I did
+- Created a 3-node practice cluster with kind (1 control plane, 2 workers):
+  `kind create cluster --name practice --config kind-practice.yaml`.
+- Checked it with `kubectl get nodes`. The workers showed `NotReady` at first and
+  became `Ready` once the cluster's networking pods (kindnet, kube-proxy) started.
+- Created a Deployment with 3 replicas; deleted a pod and watched it get replaced.
+- Scaled the Deployment up and down with `kubectl scale`.
+- Traced the chain Deployment -> ReplicaSet -> Pods and saw which nodes the pods landed on.
+- Used `kubectl explain` and `-o yaml` to see the fields and what Kubernetes stored.
+- Created `dev` and `prod` namespaces, deployed the same app to both, and
+  switched the default namespace with `set-context`.
+
+### What I learned
+- Kubernetes keeps desired state (e.g., "run 3 copies of this app") and controllers
+  continuously make reality match it. Similar idea to Terraform, but continuous.
+- A cluster is a set of nodes. The control plane is the brain (API server, etcd,
+  scheduler, controller manager). Workers run the apps, via the kubelet on each node.
+- kind runs each node as a Docker container, so the 3 "servers" are 3 containers
+  in Docker Desktop (containers inside containers). The node names come from
+  `--name`: `<name>-control-plane`, `<name>-worker`, `<name>-worker2`.
+- `kubectl` reads `~/.kube/config`, which stores clusters and contexts. My
+  context is `kind-practice`. Delete clusters with `kind delete cluster`, not by
+  removing containers.
+- Discovered the difference between running a pod imperatively (eg., `kubectl run web --image=nginx:1.27-alpine`) vs declaratively (eg., as seen in `lab-05-k8s-basics/pod.yaml`)
+- Learned a bare pod isn't recreated after deletion.
+
+Takeaway: Kubernetes continuously reconciles actual state toward desired state;
+Deployments give me self-healing and scaling that bare pods don't.
+
+## Day 6
+
+Focused on Kubernetes, particularly ConfigMaps, Secrets, Services, and DNS
+
+- Recreated the kind cluster with extra port mappings (host 8080/8443 -> node 80/443)
+  and an `ingress-ready` label on the control-plane node (port mappings can only be
+  set at cluster creation).
+- ConfigMap: mounted as a file (index.html) and as an env var; edited the ConfigMap
+  and saw the mounted file update, but the env var needed
+  `kubectl rollout restart`.
+- Secret: created with `kubectl create secret generic`, decoded it with `base64 -d`,
+  injected it as an env var. Learned secrets are base64-encoded, not encrypted.
+- Service: ClusterIP reached via `port-forward`, looked at endpoints, LoadBalancer
+  stayed `<pending>` on kind because there's no cloud provider.
+- DNS: from a busybox debug pod, resolved `app1` and `app1.default.svc.cluster.local`
+- Break/fix, selector mismatch:
+  - Symptom: Service had no endpoints, requests failed.
+  - Diagnosis: `kubectl get endpoints` showed `<none>`; `describe svc` and
+    `get pods --show-labels` showed the selector didn't match the pod labels.
+  - Root cause: Service selector `app: app11` vs pod label `app: app1`.
+  - Fix: corrected the selector.
+- Ingress: installed Traefik with Helm, created an Ingress routing
+  app1.localtest.me and app2.localtest.me to two services.
