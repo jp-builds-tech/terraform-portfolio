@@ -132,3 +132,54 @@ Focused on Kubernetes, particularly ConfigMaps, Secrets, Services, and DNS
   - Fix: corrected the selector.
 - Ingress: installed Traefik with Helm, created an Ingress routing
   app1.localtest.me and app2.localtest.me to two services.
+
+  ## Day 7
+
+  Reliability: probes, limits, rollouts, autoscaling, break/fix
+
+- Built a baseline deployment (3 replicas) with readiness and liveness probes
+  and CPU/memory requests and limits
+- Readiness controls whether a pod receives traffic (removed from endpoints
+  when failing), controls restarts, requests drive scheduling. Limits are
+  the ceiling (memory over limit = killed, CPU over limit = throttled)
+- Rolling updates: updated the image, watched `rollout status`, checked
+  `rollout history`, pushed a bad image tag and saw the rollout stall while old
+  pods kept serving, recovered with `rollout undo`. maxSurge/maxUnavailable
+  default to 25%.
+
+### Break/fix write-ups
+1. **Failing readiness probe**
+   - Symptom: new pod `0/1 Running`, rollout stalled
+   - Diagnosis: `describe pod` events: readiness probe failed with 404;
+     `get endpoints` showed only old pods
+   - Root cause: probe path `/nope` doesn't exist
+   - Fix: restored the path / `rollout undo`
+2. **Failing liveness probe**
+   - Symptom: RESTARTS count climbing
+   - Diagnosis: events: liveness probe failed, container will be restarted
+   - Root cause: liveness probe path `/nope` returned 404, so Kubernetes kept
+     restarting a healthy container
+   - Fix: restored the probe path
+3. **OOMKilled**
+   - Symptom: pod bouncing between OOMKilled and CrashLoopBackOff
+   - Diagnosis: `describe pod`: Last State Terminated, Reason OOMKilled, exit code 137
+   - Root cause: the process tried to use 250 MB but the memory limit was 100 MiB
+   - Fix: raised the limit (or lowered the memory the process uses)
+4. **Pending**
+   - Symptom: pod stuck in Pending
+   - Diagnosis: events: `0/3 nodes are available: Insufficient cpu`
+   - Root cause: requested 100 CPUs, and no node could satisfy it
+   - Fix: deleted the pod and recreated it with a realistic request
+5. **ImagePullBackOff**
+   - Symptom: ErrImagePull, then ImagePullBackOff
+   - Diagnosis: `describe pod` events: image tag not found
+   - Root cause: the tag `nginx:doesnotexist` doesn't exist
+   - Fix: deleted the pod and recreated it with a real tag
+6. **CrashLoopBackOff**
+   - Symptom: pod restarting repeatedly with growing delay
+   - Diagnosis: `logs --previous` showed "starting"; `describe` showed exit code 1
+   - Root cause: the container command exits with an error right after starting
+   - Fix: corrected the command (or removed the `exit 1`)
+
+In general, most failures are diagnosed with three commands: `kubectl get pods`,
+`kubectl describe pod` (read the Events), and `kubectl logs --previous`.
