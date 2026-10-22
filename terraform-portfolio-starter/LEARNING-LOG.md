@@ -183,3 +183,14 @@ Focused on Kubernetes, particularly ConfigMaps, Secrets, Services, and DNS
 
 In general, most failures are diagnosed with three commands: `kubectl get pods`,
 `kubectl describe pod` (read the Events), and `kubectl logs --previous`.
+
+## Day 8
+Storage, StatefulSets, Jobs, RBAC, and Review
+
+- Storage: I used the default `standard` StorageClass in kind. At first, the PVC stayed in Pending, which I thought might be an issue. Once I created a pod that used it, the PVC changed to Bound and a PV was created. I deleted and recreated the pod, and the data in /data/log.txt was still there, including both timestamps. After deleting the PVC, the PV was also deleted because its reclaim policy was set to Delete, so the data was lost.
+- StatefulSet: I created a StatefulSet with three replicas, a headless Service, and volumeClaimTemplates. The pods started in order (web-sts-0, web-sts-1, and web-sts-2), and each one had its own PVC named www-web-sts-N. I deleted web-sts-1 to see what would happen. It came back with the same name and kept its data (I am web-sts-1). This was different from a Deployment, where a replacement pod usually gets a new name. I also tested DNS using nslookup web-hl, which returned all three pod IPs. Each pod was reachable through its name, such as web-sts-0.web-hl. One thing to remember is that deleting the StatefulSet doesn't automatically remove its PVCs, so I deleted those separately.
+- Jobs and CronJobs: The Job ran successfully, and its pod ended in the Completed state. I checked the output with kubectl logs job/hello-job. I also tested a CronJob with the schedule */1 * * * *. It created a new Job every minute, and older Jobs were cleaned up once they exceeded the history limit of three.
+- RBAC: I created a viewer ServiceAccount, a pod-reader Role, and a RoleBinding. The Role allowed get, list, and watch on pods in the rbac-lab namespace. I tested the permissions using kubectl auth can-i --as=.... The account could list pods in rbac-lab, but it couldn't delete pods, list pods in the default namespace, or list secrets. I also tried deleting a pod as the viewer and got a Forbidden response, as expected. After deleting the RoleBinding, listing pods was no longer allowed. Applying it again restored access.
+Something I learned: The PVC being stuck in Pending wasn't actually an error. The StorageClass uses WaitForFirstConsumer, so the volume isn't provisioned and bound until a pod needs it.
+
+Pods can be replaced, so data that needs to survive should be stored outside the pod's filesystem. StatefulSets also provide stable pod identities and separate storage for each replica. For RBAC, the main pieces are the subject, Role, and RoleBinding. kubectl auth can-i --as=... is a useful way to check permissions before trying an actual operation.
