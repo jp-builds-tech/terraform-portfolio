@@ -194,3 +194,27 @@ Storage, StatefulSets, Jobs, RBAC, and Review
 Something I learned: The PVC being stuck in Pending wasn't actually an error. The StorageClass uses WaitForFirstConsumer, so the volume isn't provisioned and bound until a pod needs it.
 
 Pods can be replaced, so data that needs to survive should be stored outside the pod's filesystem. StatefulSets also provide stable pod identities and separate storage for each replica. For RBAC, the main pieces are the subject, Role, and RoleBinding. kubectl auth can-i --as=... is a useful way to check permissions before trying an actual operation.
+
+## Day 9
+Used Terraform to create the cluster
+
+- Created `k8s-platform/cluster/` with the `tehcyx/kind` provider: `kind_cluster`
+  resource, variables (cluster_name, worker_count with validation 1-3, node_image),
+  and outputs (cluster name, kubeconfig path, endpoint)
+- Rewrote my Day 6 `kind-ingress.yaml` as Terraform: control-plane node with the
+  `ingress-ready=true` label and port mappings 80->8080 and 443->8443; workers are
+  generated with a `dynamic "node"` block over `range(var.worker_count)`
+- `terraform apply` created a 3-node cluster; `kubectl get nodes` showed 1 control-plane
+  and 2 workers Ready (kubeconfig written to `~/.kube/kind-platform.config`, outside the repo)
+- Drift tests:
+  - Deleted a worker container with `docker rm -f`: `terraform plan` reported
+    no changes, because the provider only checks that the cluster exists by name.
+    Terraform only knows what the provider checks. Recovered with
+    `terraform apply -replace=kind_cluster.this`.
+  - Deleted the whole cluster with `kind delete cluster`: `terraform plan` showed
+    1 to add; `apply` recreated it
+- Wrote `scripts/up.sh` and `scripts/down.sh` (apply cluster then platform; destroy
+  platform then cluster)
+- Rebuild test: `down.sh` removed everything (`kind get clusters` and `docker ps`
+  empty); quit Docker Desktop and ran `wsl --shutdown`; `vmmem` disappeared from
+  Task Manager and my RAM was free; `up.sh` rebuilt the cluster in about 2 minutes.
