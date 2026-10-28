@@ -218,3 +218,30 @@ Used Terraform to create the cluster
 - Rebuild test: `down.sh` removed everything (`kind get clusters` and `docker ps`
   empty); quit Docker Desktop and ran `wsl --shutdown`; `vmmem` disappeared from
   Task Manager and my RAM was free; `up.sh` rebuilt the cluster in about 2 minutes.
+
+## Day 10
+  Platform layer (namespaces and Traefik via Terraform)
+
+  - Added `k8s-platform/platform/` as a second root module with its own state, separate
+  from `cluster/`
+- `platform/` reads the cluster's `kubeconfig_path` output with a
+  `terraform_remote_state` data source (local backend, `../cluster/terraform.tfstate`)
+  and uses it to configure both the `kubernetes` and `helm` providers.
+- Created namespaces `dev`, `prod`, and `traefik` with `for_each` over a set
+  (`setunion(["traefik"], var.namespaces)`), all labelled `managed-by=terraform`.
+- Installed Traefik with a `helm_release` from the official chart repo, pinned to
+  chart version `42.1.3`.
+- The Helm release gets the namespace from `kubernetes_namespace_v1.ns["traefik"]`,
+  so Terraform creates the namespace first (implicit dependency).
+- `namespaces` variable has two validations: DNS-label format via `alltrue([for ...])`,
+  and `traefik` is reserved. Tested both with bad inputs and read the errors.
+- Verified: Traefik pod running on `platform-control-plane`, `helm list` shows
+  `deployed`, and `curl -i localhost:8080` returns `404 page not found` (Traefik
+  is reachable and has no routes yet).
+
+Splitting layers means each layer has its own state, and one layer can
+read another's outputs. That's the same idea as separate network and application
+stacks on a real cloud. Layers must be applied in dependency order and destroyed in
+the reverse order.
+
+As an aside, a create failed partway, and the real infrastructure didn't match `terraform state list`. I had to fix this discrepancy by deleting the leftover object, although I discovered that you can also adopt it using `import` as noted in Day 4.
