@@ -245,3 +245,25 @@ stacks on a real cloud. Layers must be applied in dependency order and destroyed
 the reverse order.
 
 As an aside, a create failed partway, and the real infrastructure didn't match `terraform state list`. I had to fix this discrepancy by deleting the leftover object, although I discovered that you can also adopt it using `import` as noted in Day 4.
+
+## Day 11
+Reusable app module and per-environment deployments
+
+- Wrote `modules/app/`: ConfigMap, Deployment, Service, and Ingress behind one set of
+  inputs (name, environment, namespace, image, port, replicas, memory_limit, host,
+  env_vars) with validations on name, replicas, and memory_limit, and outputs for
+  host and service name.
+- The module contains no environment-specific logic. Dev and prod differ only in the
+  values passed in.
+- Added a `precondition` on the Deployment: prod can't use a `:latest` image tag
+- Refactored the platform inputs: replaced the `namespaces` variable with an
+  `environments` map (replicas and memory_limit per environment) and added an `apps`
+  map using `optional()` for a default port. `terraform plan` after the refactor
+  showed no changes, so the refactor was safe.
+- Called the module with `for_each` over `setproduct(keys(environments), keys(apps))`,
+  giving keys dev-web, dev-api, prod-web, prod-api.
+- Added `depends_on = [helm_release.traefik]` on the module: an explicit dependency,
+  since the Ingress needs Traefik but nothing references it.
+- Verified: dev runs 1 pod per app and prod runs 2. All four apps answer through
+  Traefik on `<app>-<env>.localtest.me:8080`. The prod loop returned two different
+  server names, showing requests spread across replicas.
