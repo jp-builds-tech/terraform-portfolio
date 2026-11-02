@@ -9,3 +9,7 @@ output "traefik_status" {
 output "traefik_chart_version" {
   value = helm_release.traefik.version
 }
+
+output "app_urls" {
+  value = { for k, m in module.app : k => "http://${m.host}:8080" }
+}

@@ -1,5 +1,5 @@
 locals {
-  all_namespaces = setunion(["traefik"], var.namespaces)
+  all_namespaces = setunion(["traefik"], keys(var.environments))
 
   common_labels = {
     "app.kubernetes.io/managed-by" = "terraform"
