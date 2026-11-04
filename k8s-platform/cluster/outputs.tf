@@ -1,11 +1,14 @@
 output "cluster_name" {
-  value = kind_cluster.this.name
+  description = "Name of the kind cluster."
+  value       = kind_cluster.this.name
 }
 
 output "kubeconfig_path" {
-  value = kind_cluster.this.kubeconfig_path
+  description = "Path to the kubeconfig file for the cluster."
+  value       = kind_cluster.this.kubeconfig_path
 }
 
 output "endpoint" {
-  value = kind_cluster.this.endpoint
+  description = "API server endpoint of the cluster."
+  value       = kind_cluster.this.endpoint
 }
