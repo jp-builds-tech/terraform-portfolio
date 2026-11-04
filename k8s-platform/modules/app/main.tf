@@ -17,6 +17,11 @@ resource "kubernetes_config_map_v1" "this" {
 }
 
 resource "kubernetes_deployment_v1" "this" {
+  #checkov:skip=CKV_K8S_43:Image tag is pinned; digest pinning needs a lookup process that is overkill for this lab
+  #checkov:skip=CKV_K8S_15:Always would re-pull on every pod start and hit Docker Hub rate limits in this local lab
+  #checkov:skip=CKV_K8S_22:nginx needs writable cache and PID directories, read-only root would need emptyDir mounts, left as a follow-up
+  #checkov:skip=CKV_K8S_37:This nginx image starts as root and needs capabilities to bind port 80, dropping ALL would stop it from starting
+
   metadata {
     name      = var.name
     namespace = var.namespace
@@ -38,6 +43,14 @@ resource "kubernetes_deployment_v1" "this" {
       }
 
       spec {
+        automount_service_account_token = false
+
+        security_context {
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
+
         container {
           name  = var.name
           image = var.image
@@ -58,7 +71,16 @@ resource "kubernetes_deployment_v1" "this" {
               memory = "16Mi"
             }
             limits = {
+              cpu    = "200m"
               memory = var.memory_limit
+            }
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+
+            capabilities {
+              drop = ["NET_RAW"]
             }
           }
 
@@ -69,6 +91,15 @@ resource "kubernetes_deployment_v1" "this" {
             }
             initial_delay_seconds = 2
             period_seconds        = 5
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/"
+              port = var.port
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 10
           }
         }
       }
