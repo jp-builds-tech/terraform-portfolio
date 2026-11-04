@@ -1,0 +1,68 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "k8s-platform/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "k8s-platform/**"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    name: fmt, validate, lint, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: k8s-platform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.5"
+          terraform_wrapper: false
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Format check
+        run: terraform fmt -check -recursive -diff
+
+      - name: Validate
+        run: |
+          for dir in cluster platform modules/app; do
+            echo "::group::validate $dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
+
+      - name: TFLint
+        run: tflint --recursive --config "$GITHUB_WORKSPACE/k8s-platform/.tflint.hcl"
+
+      - name: Unit tests
+        run: terraform -chdir=modules/app test
+
+  security:
+    name: checkov
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: k8s-platform
+          framework: terraform
+          quiet: true
