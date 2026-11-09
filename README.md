@@ -1,4 +1,5 @@
 # Terraform Kubernetes Platform
+![CI](https://github.com/jp-builds-tech/terraform-portfolio/actions/workflows/ci.yml/badge.svg)
 
 ### Status: In Progress
 
