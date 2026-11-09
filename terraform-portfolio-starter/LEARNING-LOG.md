@@ -267,3 +267,78 @@ Reusable app module and per-environment deployments
 - Verified: dev runs 1 pod per app and prod runs 2. All four apps answer through
   Traefik on `<app>-<env>.localtest.me:8080`. The prod loop returned two different
   server names, showing requests spread across replicas.
+
+
+## Day 12
+Tests, linting, security scanning, and CI
+
+Until now the only thing standing between a mistake and `main` was me remembering to look. Now a set of automatic checks does it.
+
+- Wrote 7 unit tests for my app module using a fake Kubernetes provider
+  (`mock_provider`), so they run in seconds with no cluster. They check things like
+  "the ingress uses the host I gave it" and "bad names and replica counts get
+  rejected". One test confirms prod refuses a `:latest` image while dev allows it. All 7 pass.
+- Added tflint. It complained that my outputs had no descriptions, so I added them
+  everywhere. I also gave the module a minimum Terraform version and a provider
+  version.
+- Ran checkov, the security scanner. First run: 7 failures. I fixed what was easy:
+  a liveness probe, security contexts, dropping the NET_RAW capability, a CPU limit,
+  and turning off the service account token the apps don't need. Fixing those made two
+  more checks show up (read-only filesystem and capabilities). For those two, and
+  for image digest pinning and the "always pull" policy, I skipped the checks and
+  wrote the reason in a comment next to each one. Four skips total.
+- Wrote `check.sh`, which runs every check on my own machine, so I find problems
+  in seconds instead of waiting for GitHub.
+- Wrote the GitHub Actions workflow (`ci.yml`). On every push and pull request it
+  checks formatting, validates all three Terraform folders, lints, runs the tests,
+  and scans with checkov.
+
+Checks that run on every change catch mistakes before they reach a 
+cluster. The tests prove the module's rules, tflint and checkov enforce standards,
+and the PR workflow makes the checks visible to anyone reviewing.
+
+
+## Day 13
+Remote state, locking, and an AWS-style module
+
+Today was about where Terraform keeps its memory (the state file) and how a team
+shares it safely. I also wrote some AWS code, without an AWS account.
+
+**What I built**
+- I used Moto, a small program that pretends to be AWS, running in one container.
+  I picked it because LocalStack now wants an account and MinIO has been archived.
+  Everything in it is lost when the container is removed, which is a good reminder
+  of why real state needs proper storage.
+- A "bootstrap" folder: it creates the bucket that will hold state (versioned,
+  encrypted, closed to the public) and a lock table. It runs once, using local
+  state, because the bucket has to exist before anything can use it.
+- A reusable VPC module: VPC, internet gateway, four subnets, a public route table,
+  and a security group. Each subnet gets its own number for its address range, so
+  adding a subnet doesn't shift the others (the same trap as `count` on Day 2). The
+  security group's rules come from a `dynamic` block. I wrote 4 tests for it and
+  they pass.
+- Applied the network folder with local state first (10 resources), then moved its
+  state into the bucket with `terraform init -migrate-state`. Afterwards `plan`
+  showed no changes, so nothing was lost in the move.
+
+**Locking**
+- I started an apply in one terminal and left it waiting at the prompt. A plan in a
+  second terminal refused to run and showed me the lock. Then I killed the first
+  process, and the lock stayed behind, because a remote lock doesn't release itself
+  when a process dies. `terraform force-unlock` cleared it.
+- Compared with Day 11, that lock was a local file lock, and the OS released it by
+  itself when the process ended. A remote lock stays until someone removes it.
+
+**Other things I tried**
+- A `staging` workspace gave the same code its own separate state file. I
+  destroyed it afterwards.
+- Bucket versioning kept older copies of my state, so a bad write can be recovered.
+- A full rebuild from nothing (emulator, bootstrap, network) took [about X].
+
+**What went wrong**
+- GitHub warned me about two big files when I pushed. They were Terraform provider
+  plugins from old `.terraform/` folders that I'd committed on an early day, before
+  my ignore rules covered them. I found them with `git rev-list`, rewrote the
+  history with `git filter-repo`, force-pushed, and then had to push `main` too
+  because the two histories no longer matched. Along the way I restored one README
+  line that the rewrite dropped.
