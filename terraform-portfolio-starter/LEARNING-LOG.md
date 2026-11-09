@@ -8,7 +8,7 @@
 - Recreated the previous day's lab by referencing terraform's documentation. 
 - Main issues encountered were referencing the resources named using improper syntax, rectified by utilizing proper syntax.
 - Most of the time was spent looking up proper syntax and formatting.
-- Checked provider docs and chose a current version constraigt, noting that nginx:latest is a floating tag.
+- Checked provider docs and chose a current version constraint, noting that nginx:latest is a floating tag.
 
 Experiments:
 
@@ -28,7 +28,7 @@ Experiments:
 
 - Running terraform state show appears to be the human-friendly version of terraform.tfstate (JSON).
 - Research indidcates that manually editing terraform.tfstate is a terrible idea.
-gi
+
 5. Try `-var external_port=80`. Read the validation error.
 
 - The validation error is as follows:
@@ -56,9 +56,9 @@ gi
     - When I manually deleted web-a using docker rm -f web-a, Terraform detected that the container was missing and planned to recreate it.
     - When I renamed web-b outside Terraform, Terraform detected the difference between the actual container name and the configured name.
     - The Docker provider requires replacement when the configured container name changes, so Terraform planned to replace the renamed container.
-- Understood how you can force resource replacement using `terraform apply -replace`. Useful if a resource isn't working as expected but Terraform believe it's running.
+- Understood how you can force resource replacement using `terraform apply -replace`. Useful if a resource isn't working as expected but Terraform believes it's running.
 - `terraform plan -refresh-only` previews changes to state so it reflects the infrastructure as it currently exists.
-- `terraform apply -refresh-only` saves those refreshes observations to state without applying normal infrastructure changes.
+- `terraform apply -refresh-only` saves those refreshed observations to state without applying normal infrastructure changes.
 - State exists so Terraform can determine which resources it already manages, detect changes, calculate plans, and know what to update, replace, or destroy.
 - State is sensitive because it can contain passwords, tokens, connection details, and other confidential values, depending on the resources and providers I use. Marking a value as sensitive in Terraform controls how it is displayed, but does not automatically prevent it from being stored in state.
 
@@ -67,11 +67,11 @@ gi
 - Set up modules to simulate shared configurations across different environments (dev and prod)
 - Changed a resource address without recreating any of the infrastructure using `moved`.
 - If I wanted to move 200 hand-built resources under Terraform, I would need to:
-    1. Inventory exisiting infrastructure.
+    1. Inventory existing infrastructure.
     2. Prioritize low-risk, independent resources for the migration.
-    3. Write the Terraform configuration to reflect exisiting infrastructure.
+    3. Write the Terraform configuration to reflect existing infrastructure.
     4. Import these resources in small batches. Verify before each import.
-    5. Review `terraform plan` and adjust the configuration until Terraform proposes nop unintended changes, especially no unexpected replacement or destruction.
+    5. Review `terraform plan` and adjust the configuration until Terraform proposes no unintended changes, especially no unexpected replacement or destruction.
     6. Back up state securely and restrict access. Keep it out of version control.
     7. Stop manual changes after import is complete.
     8. Introduce CI/CD and monitoring to prevent drift.
@@ -333,7 +333,6 @@ shares it safely. I also wrote some AWS code, without an AWS account.
 - A `staging` workspace gave the same code its own separate state file. I
   destroyed it afterwards.
 - Bucket versioning kept older copies of my state, so a bad write can be recovered.
-- A full rebuild from nothing (emulator, bootstrap, network) took [about X].
 
 **What went wrong**
 - GitHub warned me about two big files when I pushed. They were Terraform provider
