@@ -7,7 +7,7 @@ terraform {
       version = "~> 6.72"
     }
   }
-  
+
   backend "s3" {
     key = "network/terraform.tfstate"
   }
