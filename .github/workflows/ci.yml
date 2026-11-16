@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - "k8s-platform/**"
+      - "aws-lab/**"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "k8s-platform/**"
+      - "aws-lab/**"
       - ".github/workflows/ci.yml"
 
 permissions:
@@ -20,11 +22,21 @@ concurrency:
 
 jobs:
   terraform:
-    name: fmt, validate, lint, test
+    name: ${{ matrix.project }} - fmt, validate, lint, test
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: k8s-platform
+            dirs: "cluster platform modules/app"
+            module_dir: modules/app
+          - project: aws-lab
+            dirs: "bootstrap network modules/vpc"
+            module_dir: modules/vpc
     defaults:
       run:
-        working-directory: k8s-platform
+        working-directory: ${{ matrix.project }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +54,7 @@ jobs:
 
       - name: Validate
         run: |
-          for dir in cluster platform modules/app; do
+          for dir in ${{ matrix.dirs }}; do
             echo "::group::validate $dir"
             terraform -chdir="$dir" init -backend=false -input=false
             terraform -chdir="$dir" validate
@@ -50,19 +62,28 @@ jobs:
           done
 
       - name: TFLint
-        run: tflint --recursive --config "$GITHUB_WORKSPACE/k8s-platform/.tflint.hcl"
+        run: tflint --recursive --config "$GITHUB_WORKSPACE/${{ matrix.project }}/.tflint.hcl"
 
       - name: Unit tests
-        run: terraform -chdir=modules/app test
+        run: terraform -chdir=${{ matrix.module_dir }} test
 
   security:
-    name: checkov
+    name: ${{ matrix.project }} - checkov
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: k8s-platform
+            soft_fail: false
+          - project: aws-lab
+            soft_fail: true
     steps:
       - uses: actions/checkout@v4
 
       - uses: bridgecrewio/checkov-action@v12
         with:
-          directory: k8s-platform
+          directory: ${{ matrix.project }}
           framework: terraform
           quiet: true
+          soft_fail: ${{ matrix.soft_fail }}
