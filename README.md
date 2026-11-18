@@ -37,13 +37,13 @@ You need Docker, Terraform, kubectl, and (for the checks) tflint and checkov. Al
 commands run in WSL or Linux.
 
 ```bash
-# Kubernetes platform (about [N] minutes to build)
+# Kubernetes platform
 ./k8s-platform/scripts/up.sh
 export KUBECONFIG=$HOME/.kube/kind-platform.config
 curl http://web-prod.localtest.me:8080
 ./k8s-platform/scripts/down.sh
 
-# AWS lab (about [N] minute to build)
+# AWS lab
 ./aws-lab/scripts/up.sh
 source aws-lab/scripts/env.sh
 ./aws-lab/scripts/down.sh
